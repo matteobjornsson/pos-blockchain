@@ -154,7 +154,11 @@ class BlockChain:
         :return: str. String representation of the BlockChain
         """
         blockchain_string = 'Node ' + self.node_id + ' Blockchain: \n'
+        stack = collections.deque()
         for block in self.blockchain:
+            stack.append(block)
+        for i in range(0, len(stack)):
+            block = stack.pop()
             blockchain_string += '-'*75 + '\n'
             for k, v in block.__dict__.items():
                 if k == 'transactions':
