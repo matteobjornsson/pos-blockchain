@@ -1,0 +1,140 @@
+PSEUDOCODE
+PART 1
+--------------
+
+1A. Transactions
+*unique id (hash) ->  include timestamp
+*sent by a Node
+*verified for double transactions
+
+generateHash()
+__equals__() -> override
+verify()
+
+1B. Ledger
+*readable file
+???
+
+2. Blocks 
+* Consists of Transactions
+* Gathers Transactions
+* Verified by nodes on incoming block
+* State of transactions
+
+Attributes
+-prevHash
+-timestamp
+-nonce
+-transactions (would usually just be merkle root)
+-
+
+3. BlockChain
+* Consists of Blocks
+* longest blockchain wins
+
+4. Nodes
+* verification of blocks and blockchain
+* Mine and Send block
+* Available money -> personal balance
+
+5. TransactionPool
+* pulls transactions by fee -> FIFO
+
+6. Mining -> CPU proof of work
+
+Blockchain Lifecycle
+---------------------
+1. first block is created -> Genesis
+2. Everyone starts with coin
+3. Nodes can send transactions 
+4. Transactions are added to block
+5. Block is mined (Nonce)
+6. Mined block is sent
+7. Receiving nodes verify incoming block
+8. Valid blocks are added to blockchain
+
+Single Node Actions
+--------------------
+# mine block -> thread? 
+-1. check for transactions
+0. get previous block hash (longest chain)
+1. Gather transactions into group (merkle tree?)
+2. Hash block
+3. Mine block containing group (find nonce satisfying difficulty)
+4. Send block to network and update personal balance
+
+# receive block -> thread? 
+0. discard any blocks being mined currently
+1. verify block (verify merkle root, hash block header-> matches difficulty)
+    a. does previous block exist?
+    b. current block timestamp > previous block timestamp?
+    c. valid proof of work? (i.e. nonce hash has correct number of zeroes)
+    d. apply transactions in block (based on previous block state) and make sure they are all valid
+    -> if invalid during any of these steps, discard
+2. add to prev block
+3. update "branch" status (trim if trimming needed)
+4. update ledger with transactions
+
+# Genesis
+actual blockchain would have "mid chain" entry protocol/missing block retreival
+
+PART 2
+--------
+
+I.o. Mining you use probability and consensus protocol to generate blocks
+Includes signing of blocks using key pairs 
+-> public key distribution to verify, and sign with private key
+
+Key differences:
+Mining -> probability of creation
+-> majority consensus on who gets to add next block
+Verification 
+-> Some number of peers sign chosen block (until stake >= transaction value)
+    -> do not sign if block invalid (double spend) or peer exceeding p
+-> Block is sent to all peers who verify block is Valid 
+    (we will not be implementing penalty mechanism)
+    (But we will penalize for not laughing at my jokes.)
+
+
+GRADING
+--------
+
+6 points - Blockchain
+2 - correctly mines a block
+1 - sends a block to other miners
+3 - miners verify incoming block and add to the blockchain
+
+14 points - Proof of Stake
+1 - a verifier generates a block with probability p
+3 - verifiers reach consensus on accepted blocks
+3 - block signed with sufficient proof of stake
+1 - signed block contains no double spending events
+2 - signed block does not exceed p for client
+2 - verifiers get reward for creating a block
+2 - verifiers get reward for signing a block
+
+Part I:
+Test everything properly
+TODO: get ledger to update correctly
+test 4 instances local using SQS
+
+discover longest chain protocol:
+receive block:
+    if index already exists:
+        save block in ''saved blocks''
+        keep existing chain
+    else if index >> than current index:
+        loop through ''saved blocks'' until there is no more block with prevHash and add to saved chain stack (to replace)
+        -> block(prevHash) -> last block current node needs to keep in own chain
+        Replace current chain from block(prevHash) on with saved chain by popping from stack (add replaced blocks to ""saved blocks"")
+        #and verifying as saved chain is processed
+        # if verification fails, revert to old chain
+
+
+Thread:
+while true:
+    new block = mine_block()
+    if new_block:
+        send new block
+    else:
+        continue
