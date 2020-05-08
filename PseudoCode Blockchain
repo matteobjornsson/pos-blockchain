@@ -138,3 +138,65 @@ while true:
         send new block
     else:
         continue
+
+***************************************************
+**  PART II                                      **
+***************************************************
+Let verifiers (miners) create blocks in each time instance (say every 20 seconds) according to a probability p, instead
+of by mining. Verifiers with a block interact through consensus to decide which one of them is allowed to add their block to
+the chain. The winner contacts other verifiers, who sign the block, if the containing transactions do not contain double
+spending transactions (spender has money to spend) and if the block creator does not exceed p in creating the block. Once
+a block has signatures from enough verifiers, such that their stake exceeds the total of the transactions, the block can be
+added to the blockchain. Finally, a reward for the verifier that created the block and those who signed it is recorded in the
+block.
+14 points - Proof of Stake
+1 - a verifier generates a block with probability p
+3 - verifiers reach consensus on accepted blocks
+3 - block signed with sufficient proof of stake
+1 - signed block contains no double spending events
+2 - signed block does not exceed p for client (how many blocks does each node produce
+    -> if one block generates 4/5 blocks, for example, this would mean the other nodes
+    do not accept its blocks, as it ''exceeds'' its probability)
+2 - verifiers get reward for creating a block
+2 - verifiers get reward for signing a block
+
+every random.random()*10 seconds:
+    number = random.random()
+    if number > 0.8:
+        create block
+
+General protocol
+1. all verifiers attempt to create a block every 20 seconds with probability p
+2. all verifiers who successfully create a block request to be elected leader (fault tolerant. Use heartbeats like Raft?)
+3. elected verifier sends messages to add block to chain by requesting signatures
+4. selected verifiers request signatures
+5. signers check that the block does not contain double spending and creator does not exceed probability p of block creation
+    5.1 signers sign stake to block
+        maximum stake = transaction value/number of nodes (-1) -> for example, transactions sum to 10,
+        and there are four nodes, each signature contains at least 3.3 as stake
+    5.2 WHAT HAPPENS IF NOT VALID? Does not get signed, so majority may not be achieved and does not get added to blockchain on other nodes.
+6. when signed stake exceeds total value of transactions, selected verifier adds block to blockchain if signatures are valid
+    a. print out if they are not valid, if this were a fully implemented blockchian there would be a mechanism to forfeit staked coin
+
+single node protocol:
+1. every ~20 seconds attempt to generate block.
+    if successful,
+        collect transactions, verify them, and make block.
+        request leadership.
+    else:
+        wait and respond to leadership requests, vote on a first-come-first-serve basis
+2. if leader:
+        send block to all peers requesting they sign it
+   else:
+        upon receiving block to sign, verify transactions and "sign" if valid. Send signature to back leader
+3. if leader:
+        if necessary signatures not received within time window, reset network back to follower (two leaders could be competing and deadlocked)
+        else if all signatures acquired, process all rewards and send them as transactions to the system. Assemble all signatures, add block to own chain and send signed block to network.
+            revert to follower, start block timer
+   else:
+        receive signed block. Verify all signatures, verify stake is greater than value, verify leader has not exceeded rate of block generation
+        if valid, add block to blockchain, start block timer
+        else blacklist leader for block generation until chain longer than index of received block
+Repeat
+
+
