@@ -42,10 +42,10 @@ class leaderElection:
         self.election_state = 'leader'
         self.e.stop_timer()
         self.send_heartbeat()
-        self.h.restart_timer()
+        # self.h.restart_timer()
 
     def release_leadership(self):
-        self.h.stop_timer()
+        # self.h.stop_timer()
         self.set_follower(self.term)
         self.send_to_peers('release', 'empty')
 
