@@ -36,16 +36,18 @@ class leaderElection:
         self.vote_count = 0
         self.voted_for = 'null'
         self.reset_votes_received()
+        self.h.stop_timer()
 
     def set_leader(self):
         print(self._id, ' set state to leader')
         self.election_state = 'leader'
         self.e.stop_timer()
         self.send_heartbeat()
-        # self.h.restart_timer()
+        self.h.restart_timer()
 
     def release_leadership(self):
-        # self.h.stop_timer()
+        print(self._id, " leadership released!")
+        self.h.stop_timer()
         self.set_follower(self.term)
         self.send_to_peers('release', 'empty')
 
@@ -71,7 +73,7 @@ class leaderElection:
                 self.m.send(msg, peer)
 
     def handle_incoming_message(self, message: dict):
-        print(self._id, ' Message received: ', message)
+        #print(self._id, ' Message received: ', message)
         incoming_term = int(message['term'])
         if incoming_term > self.term and self.election_state != 'leader':
             self.set_follower(incoming_term)
@@ -91,7 +93,7 @@ class leaderElection:
     def receive_heartbeat(self, message: dict):
         print('heartbeat received')
         incoming_term = int(message['term'])
-        if self.election_state == 'candidate' and self.term == incoming_term:
+        if self.election_state == 'candidate':
             self.set_follower(incoming_term)
         elif self.election_state == 'follower':
             self.e.restart_timer()

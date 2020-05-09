@@ -46,7 +46,7 @@ class Heartbeat:
                     if self.target.election_state == 'leader':
                         print('\nSending Heartbeat ........       \n')
                         self.target.send_heartbeat()
-                    self.restart = True
+                        self.restart = True
                     break
                 else:
                     if count > 10000:  
