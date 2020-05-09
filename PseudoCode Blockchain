@@ -115,7 +115,6 @@ GRADING
 
 Part I:
 Test everything properly
-TODO: get ledger to update correctly
 test 4 instances local using SQS
 
 discover longest chain protocol:
