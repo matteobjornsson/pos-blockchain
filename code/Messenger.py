@@ -41,6 +41,7 @@ class Messenger:
 		# start a thread to pull incoming messages from queue
 		self.incoming_message_thread = self.start_incoming_message_thread()
 		self.msg_count = 0
+		print('messenger initialized')
 
 	def start_incoming_message_thread(self):
 		"""this method threads @listen_for_messages()"""
@@ -65,6 +66,7 @@ class Messenger:
 		message intended to be received. Messages are then passed to the
 		target class via the target.handle_incoming_message(message) interface
 		'''
+		print('listening for messages')
 		while True:
 			while self.run:
 				# response stores results of receive call from SQS

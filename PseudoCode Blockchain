@@ -198,4 +198,15 @@ single node protocol:
         else blacklist leader for block generation until chain longer than index of received block
 Repeat
 
+lock all nodes into a 20 second "term" cycle
+	on node startup message all nodes your start time, wait until heard from all nodes, pick largest time as term start
+- only one election per term, if failed, wait until next term
+-when leader wins, sends block tagged with leader ID and term to all nodes
+-leader maintains sum of signatures, when complete adds to own blockchain and sends to all nodes
+- process block method checks received block data:
+	if leader ID == self and term == term, combine received signatures, if > tx value, do the thing
+	if not leader ID and not > tx value, verify and sign and send back to Leader ID
+	if not leader ID and > tx value, add to blockchain
+
+
 
