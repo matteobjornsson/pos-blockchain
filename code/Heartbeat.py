@@ -44,11 +44,11 @@ class Heartbeat:
                 elapsed_time = clock() - start
                 if elapsed_time > self.duration:
                     if self.target.election_state == 'leader':
-                        print('\nSending Heartbeat ........       \n')
+                        # print('\nSending Heartbeat ........       \n')
                         self.target.send_heartbeat()
                         self.restart = True
                     break
                 else:
                     if count > 10000:  
-                        print('Heartbeat Timer: ', self.duration-elapsed_time)  
+                        #print('Heartbeat Timer: ', self.duration-elapsed_time)
                         count = 0

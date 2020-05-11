@@ -22,7 +22,7 @@ class BlockChain:
         self.create_or_read_file()
 
     def verify_block(self, block) -> bool:
-        pass
+        return True
 
     def add_block(self, block):
         """
@@ -87,12 +87,9 @@ class BlockChain:
             # if no blockchain exists, initialize one with the genesis block
             self.blockchain = [  # Genesis block! as the first block in the chain the hashes are predetermined.
                 Block(
-                    prevHash='0000000000000000000000000000000000000000000000000000000000000000',
-                    timestamp=str(datetime.datetime.now()),
-                    nonce=0,
-                    transactions=[],
                     index=0,
-                    hash='000000000000000000000000000000000000000000000000000000000000000f'
+                    timestamp=str(datetime.datetime.now()),
+                    transactions=[]
                 )
             ]
             self.write_to_disk()

@@ -23,7 +23,7 @@ class Block:
         # otherwise construct Block from assigned variables.
         else:
             self.index = index
-            self.timestamp = timestamp
+            self.timestamp = str(datetime.datetime.now())
             self.transactions = transactions
             self.signatures = {} #'key':value -> 'unique node signature':stake
 

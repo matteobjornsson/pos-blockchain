@@ -208,5 +208,7 @@ lock all nodes into a 20 second "term" cycle
 	if not leader ID and not > tx value, verify and sign and send back to Leader ID
 	if not leader ID and > tx value, add to blockchain
 
+block message:
+[block, leaderID, term]
 
 

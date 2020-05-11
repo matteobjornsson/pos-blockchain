@@ -22,18 +22,19 @@ class Node:
         """
         self.node_id = node_id
         self.file_path = '../files/blockchain' + node_id + '.txt'
-        # self.ledger = Ledger(node_id)
-        # self.blockchain = BlockChain(self.node_id, self.ledger)
+        self.ledger = Ledger(node_id)
+        self.blockchain = BlockChain(self.node_id, self.ledger)
         self.probability = 0.8
-        self.term_duration = 10
+        self.term_duration = 20
         self.le = leaderElection(self.node_id)
         # self.elected_boolean = False
+        self.sig = 'check it out this is my gd signature: ' + self.node_id
 
         self.messenger = Messenger(self.node_id, self)
         self.peers = [peer for peer in ['0', '1', '2', '3'] if peer != self.node_id]
         self.transaction_queue = []
 
-        self.signatures = []
+        self.signatures = ['check it out this is my gd signature: ' + peer for peer in self.peers]
         self.received_blocks = collections.deque()
 
         self.nodes_online = []
@@ -46,11 +47,7 @@ class Node:
     def sync_nodes(self):
         start_time = datetime.now()
         self.nodes_online.append(start_time)
-        self.send_blockchain_msg(type='sync', contents=str(start_time))
-
-
-
-
+        self.send_blockchain_msg(type='sync', contents={'start_time': str(start_time)})
 
     def start_mining_thread(self) -> Thread:
         """
@@ -87,22 +84,20 @@ class Node:
             return
         sleep(.5)
         print("I hope I'm leader!!! : ", self.le.election_state)
+
+        mined_probability = random.random()
+        if True: # mined_probability > self.probability:
+            tx_to_mine = self.transaction_queue
+            new_index = self.blockchain.get_last_block().index + 1
+            verify_boolean, change_or_bad_tx = self.ledger.verify_transaction(tx_to_mine, new_index )
+            while not verify_boolean:
+                self.transaction_queue = [tx for tx in self.transaction_queue if tx.unique_id not in change_or_bad_tx]
+                verify_boolean, change_or_bad_tx = self.ledger.verify_transaction(tx_to_mine, new_index)
+            new_block = Block(index=new_index, transactions=tx_to_mine)
+            self.send_blockchain_msg(type='Block', contents={'block': str(new_block), 'leader_id': self.node_id, 'term': self.term})
+            print(self.node_id, " has mined and sent a block")
+
         self.le.release_leadership()
-
-
-
-
-
-    # # TODO: rewrite s.t. mining function is based on 20 second delay, randomized approach + leader election
-        # # mine a block
-        # mined_probability = random.random()
-        # if mined_probability > self.probability:
-        #     new_block = Block() # creating block
-        #     # self.send_leaderelection_msg()
-        #     # # self.le.request_leadership()
-        #     # if self.le.election_state == 'leader':
-        #     #     self.send_blockchain_msg(new_block)
-
 
     def handle_incoming_message(self, msg: dict):
         """
@@ -113,40 +108,84 @@ class Node:
         """
 
         if msg['type'] == 'Transaction':  # if transaction append to tx queue
-            self.transaction_queue.append(Transaction(msg['contents']))
+            contents = msg['contents']
+            print(contents, type(contents))
+            # TODO: fix the sending side of this shit
+            self.transaction_queue.append(Transaction(contents))
 
         elif msg['type'] == 'Block':  # if block process and reset mine function if valid
-            incoming_block = Block(msg['contents'])
-            print("\nIncoming Block received: \n", "Index: ", incoming_block.index, '\n')
-            self.received_blocks.append(incoming_block)
+            msg_dict = json.loads(msg['contents'])
+            block_string = copy.deepcopy(msg_dict)
+            # print('received block throwing error: ', block_string)
+            incoming_block = Block(msg_dict['block'])
+            leader_id = msg_dict['leader_id']
+            block_term = int(msg_dict['term'])
+            print("\nIncoming Block received: \n", incoming_block, block_term, leader_id, '\n incoming term : ', block_term)
+            self.process_incoming_block(block=incoming_block, term=block_term, leader_id=leader_id)
+
         elif msg['type'] == 'sync':
-            start_time = date_parser.parse(msg['contents'])
+            msg_dict = json.loads(msg['contents'])
+            start_time = date_parser.parse(msg_dict['start_time'])
             self.nodes_online.append(start_time)
             if len(self.nodes_online) > 3:
-                print("synched!")
+                # print("synched!")
                 self.genesis_time = max(self.nodes_online)
                 print('genesis time = ', self.genesis_time)
         #elif receive election_msg:
         #
 
-    def process_incoming_block(self):
-        incoming_block = self.received_blocks.popleft()
+    def process_incoming_block(self, block: Block, term: int, leader_id: str):
+        """
+        check if incoming block is sufficently staked. If so add to blockchain. Otherwise, if leader send it for more
+        signatures. if follower, sign and send back to leader.
+        :param block: block in question
+        :param term: blockchain cycle identifier
+        :param leader_id: who generated the block
+        :return: None
+        """
         # process block returns true if it is valid and added to blockchain and ledger
-        if self.le.check_leader_status == 'follower':
-            if self.blockchain.verify_block(incoming_block):
-                # if the block is valid, then we need to remove all transactions from our own tx queue
-                delete_transactions = copy.deepcopy(incoming_block.transactions)
-                self.transaction_queue = [x for x in self.transaction_queue if x not in delete_transactions]
-                # if verified: sign block
-                # TODO : sign and reply to leader that block was verified
+        # print('received term: ', type(term), " self term: ", type(self.term))
+        if term == self.term:
+            # print('self.node_id :', self.node_id, ' leader_id :', leader_id)
+            if self.node_id != leader_id:
+                if block.verify_proof_of_stake():
+                    self.blockchain.add_block(block)
+                    self.ledger.add_transactions(block.transactions, block.index)
+                    print("follower ", self.node_id, "added block to blockchain")
+                    # if the block is valid, then we need to remove all transactions from our own tx queue
+                    delete_transactions = copy.deepcopy(block.transactions)
+                    self.transaction_queue = [x for x in self.transaction_queue if x not in delete_transactions]
 
-        elif self.le.check_leader_status == 'leader':
-            # verify sum of signature stakes to make sure block wass igned by enough nodes
-            # if it is: cmmit to blockchain,
-            # else: send renewed block to collect more signatures.
-            pass
+                else:
+                    print("follower ", self.node_id, "received block to verify")
+                    # if sender does not exceed block generation rate, do this:
+                    valid_boolean, change_or_bad_tx = self.ledger.verify_transaction(block.transactions, block.index)
+                    if valid_boolean and self.sig not in block.signatures.keys():
+                        # print('sum ', sum([tx.amount for tx in block.transactions])/3 + .1)
+                        block.signatures[self.sig] = sum([tx.amount for tx in block.transactions])/3 + .1
+                        contents = {'block': str(block), 'leader_id': leader_id, 'term': str(term)}
+                        self.send_peer_msg(type='Block', contents=contents, peer=leader_id)
+            else:
+                # print('leader received block from followers')
+                if block.verify_proof_of_stake():
+                    self.blockchain.add_block(block)
+                    self.ledger.add_transactions(block.transactions, block.index)
+                    print("leader ", self.node_id, "added block to blockchain")
+                    # if the block is valid, then we need to remove all transactions from our own tx queue
+                    delete_transactions = copy.deepcopy(block.transactions)
+                    self.transaction_queue = [x for x in self.transaction_queue if x not in delete_transactions]
+                    # TODO: REWARD ERRYBODY FOR ALL THEIR HARD WORK, ALSO TREAT YO'SELF TOO
+                # if stake was sufficient, block will be complete, otherwise block will go get more signatures
+                else:
+                    print("leader ", self.node_id, "needs more signatures")
+                self.send_blockchain_msg(type='Block', contents={'block': str(block), 'leader_id': leader_id, 'term': term})
 
-    def send_blockchain_msg(self, contents: str, type: str):
+    # - process block method checks received block data:
+    # if leader ID == self and term == term, combine received signatures, if > tx value, do the thing
+    # if not leader ID and not > tx value, verify and sign and send back to Leader ID
+    # if not leader ID and > tx value, add to blockchain
+
+    def send_blockchain_msg(self, contents: dict, type: str):
         """
         sends msgs to all peers
 
@@ -155,9 +194,23 @@ class Node:
         :return: None
         """
         # send block to all known peers
-        msg_dict = {'contents': contents, 'type': type}
+        msg_dict = {'contents': json.dumps(contents), 'type': type}
         for peer in self.peers:
             self.messenger.send(msg_dict, peer)
+        #print('sending msg dictionary: ', msg_dict)
+
+    def send_peer_msg(self, contents: dict, type: str, peer: str):
+        """
+        sends msgs to specific peer
+
+        :param contents: str. ANYTHING YOU DAMN PLEASE
+        :param type: str. indicates type of msg. 'Block' or 'Transaction'
+        :param peer: str. destination
+        :return: None
+        """
+        # send block to all known peers
+        msg_dict = {'contents': json.dumps(contents), 'type': type}
+        self.messenger.send(msg_dict, peer)
 
 if __name__ == '__main__':
     n0 = Node('0')

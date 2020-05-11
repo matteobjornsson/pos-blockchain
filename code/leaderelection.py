@@ -31,7 +31,7 @@ class leaderElection:
 
     def set_follower(self, term: int):
         self.term = term
-        print(self._id, " set state to follower")
+        # print(self._id, " set state to follower")
         self.election_state = 'follower'
         self.vote_count = 0
         self.voted_for = 'null'
@@ -39,20 +39,20 @@ class leaderElection:
         self.h.stop_timer()
 
     def set_leader(self):
-        print(self._id, ' set state to leader')
+        # print(self._id, ' set state to leader')
         self.election_state = 'leader'
         self.e.stop_timer()
         self.send_heartbeat()
         self.h.restart_timer()
 
     def release_leadership(self):
-        print(self._id, " leadership released!")
+        #print(self._id, " leadership released!")
         self.h.stop_timer()
         self.set_follower(self.term)
         self.send_to_peers('release', 'empty')
 
     def request_leadership(self):
-        print(self._id, ' start election')
+        #print(self._id, ' start election')
         self.term += 1
         self.election_state = 'candidate'
         self.voted_for = self._id
@@ -61,7 +61,6 @@ class leaderElection:
         # if timer elapses during request for leadership, set to follower
 
     def send_to_peers(self, type: str, contents: str):
-        print('sent')
         msg = {'type': type, 'contents': contents, 'term': str(self.term)}
         for peer in self.peers:
             self.m.send(msg, peer)
@@ -91,7 +90,7 @@ class leaderElection:
             self.set_follower(incoming_term)
 
     def receive_heartbeat(self, message: dict):
-        print('heartbeat received')
+        # print('heartbeat received')
         incoming_term = int(message['term'])
         if self.election_state == 'candidate':
             self.set_follower(incoming_term)
@@ -106,7 +105,7 @@ class leaderElection:
             if self.voted_for == 'null':
                 self.voted_for = candidate
             if self.voted_for == candidate:
-                print(self._id, ' voted for ', candidate)
+                #print(self._id, ' voted for ', candidate)
                 vote_granted = 'True'
             self.m.send({'type': 'vote_reply', 'contents': vote_granted, 'term': str(self.term), 'sender': self._id},
                         candidate)

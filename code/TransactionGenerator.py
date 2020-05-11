@@ -68,3 +68,8 @@ if __name__ == '__main__':
                 sleep(random.uniform(0.1, 1))
                 txg.send(msg_dict, node)
         sleep(3)
+
+        # if msg['type'] == 'Transaction':  # if transaction append to tx queue
+        #     contents = json.loads(msg['contents'])
+        #     # TODO: fix the sending side of this shit
+        #     self.transaction_queue.append(Transaction(contents['transaction']))
