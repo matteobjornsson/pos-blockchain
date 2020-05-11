@@ -48,7 +48,7 @@ class Ledger:
         :return: bool, list. Return True, [new balance dict] if all valid, otherwise return false, [bad transactions] if
         transactions cause any balance to go negative.
         """
-
+        print('transaction verification incoming index: ', index, type(index))
         change = copy.deepcopy(self.blockchain_balances[index-1])  # get previous state
         for tx in transactions:  # apply all transactions to that state
             if tx.from_node != 'reward':
@@ -133,7 +133,7 @@ class Ledger:
             print('Ledger loaded from file')
         except FileNotFoundError:
             # if no ledger exists, initialize one with the initial balances
-            self.blockchain_balances = [{'node0': 10, 'node1': 10, 'node2': 10, 'node3': 10}]
+            self.blockchain_balances = [{'0': 10, '1': 10, '2': 10, '3': 10}]
             self.write_to_disk()
 
     def write_to_disk(self):
@@ -155,9 +155,9 @@ class Ledger:
 
 
 if __name__ == '__main__':
-    transactions = [Transaction(_to='node1', _from='node3', amount=1.1),
-                    Transaction(_to='node3', _from='node1', amount=0.5)]
-    nodes = ['node0', 'node1', 'node2', 'node3']
+    transactions = [Transaction(_to='1', _from='3', amount=1.1),
+                    Transaction(_to='3', _from='1', amount=0.5)]
+    nodes = ['0', '1', '2', '3']
     L = Ledger('0')
     print(L.blockchain_balances)
     verify_boolean, change = L.verify_transaction(transactions, 1)

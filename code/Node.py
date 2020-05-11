@@ -9,7 +9,7 @@ from threading import Thread, enumerate, Timer
 from time import sleep, clock
 from datetime import datetime
 from dateutil import parser as date_parser
-import  json, hashlib, copy, collections, sys, random, math
+import  json, hashlib, copy, collections, sys, random, math, shutil
 
 
 class Node:
@@ -133,6 +133,18 @@ class Node:
         #     reward = int(msg['contents'])
         #
 
+    def add_to_blockchain(self, block, leader_id):
+        self.blockchain.add_block(block)
+        self.ledger.add_transactions(block.transactions, block.index)
+        if self.node_id == leader_id:
+            print("leader ", self.node_id, "added block to blockchain")
+        else:
+            print("follower ", self.node_id, "added block to blockchain")
+        self.leader_counts[leader_id] += 1
+        # if the block is valid, then we need to remove all transactions from our own tx queue
+        delete_transactions = copy.deepcopy(block.transactions)
+        self.transaction_queue = [x for x in self.transaction_queue if x not in delete_transactions]
+
     def process_incoming_block(self, block: Block, term: int, leader_id: str):
         """
         check if incoming block is sufficently staked. If so add to blockchain. Otherwise, if leader send it for more
@@ -143,18 +155,13 @@ class Node:
         :return: None
         """
         # process block returns true if it is valid and added to blockchain and ledger
-        # print('received term: ', type(term), " self term: ", type(self.term))
-        if term == self.term:
+        print('received term: ', term, " self term: ", self.term)
+        if term == self.term and block.index == self.blockchain.get_last_block().index+1:
             # print('self.node_id :', self.node_id, ' leader_id :', leader_id)
-            if self.node_id != leader_id:
+            if self.node_id != leader_id: # if node is a follower
+                print('incoming block index: ', block.index, ' last block index: ', self.blockchain.get_last_block().index)
                 if block.verify_proof_of_stake():
-                    self.blockchain.add_block(block)
-                    self.ledger.add_transactions(block.transactions, block.index)
-                    print("follower ", self.node_id, "added block to blockchain")
-                    self.leader_counts[leader_id] += 1
-                    # if the block is valid, then we need to remove all transactions from our own tx queue
-                    delete_transactions = copy.deepcopy(block.transactions)
-                    self.transaction_queue = [x for x in self.transaction_queue if x not in delete_transactions]
+                    self.add_to_blockchain(block, leader_id)
 
                 else:
                     print("follower ", self.node_id, "received block to verify")
@@ -169,18 +176,12 @@ class Node:
                             self.send_peer_msg(type='Block', contents=contents, peer=leader_id)
             else:
                 # print('leader received block from followers')
-                if block.verify_proof_of_stake() and block.index != self.blockchain.get_last_block().index:
-                    self.blockchain.add_block(block)
-                    self.ledger.add_transactions(block.transactions, block.index)
-                    print("leader ", self.node_id, "added block to blockchain")
-                    self.leader_counts[leader_id] += 1
-                    # if the block is valid, then we need to remove all transactions from our own tx queue
-                    delete_transactions = copy.deepcopy(block.transactions)
-                    self.transaction_queue = [x for x in self.transaction_queue if x not in delete_transactions]
+                if block.verify_proof_of_stake():
+                    self.add_to_blockchain(block, leader_id)
 
                     # TODO: REWARD ERRYBODY FOR ALL THEIR HARD WORK, ALSO TREAT YO'SELF TOO
-                    rewardees = ['node'+sig[-1] for sig in block.signatures.keys()]
-                    rewardees.append('node' + self.node_id)
+                    rewardees = [sig[-1] for sig in block.signatures.keys()]
+                    rewardees.append(self.node_id)
                     print('Reward these hard working folx: ', rewardees)
                     for peer in rewardees:
                         reward_tx = str(Transaction(_to=peer, _from='reward', amount=1))
@@ -190,8 +191,7 @@ class Node:
                 # if stake was sufficient, block will be complete, otherwise block will go get more signatures
                 else:
                     print("leader ", self.node_id, "needs more signatures")
-                if block.index != self.blockchain.get_last_block().index:
-                    self.send_blockchain_msg(type='Block', contents={'block': str(block), 'leader_id': leader_id, 'term': term})
+                self.send_blockchain_msg(type='Block', contents={'block': str(block), 'leader_id': leader_id, 'term': term})
 
     # - process block method checks received block data:
     # if leader ID == self and term == term, combine received signatures, if > tx value, do the thing
@@ -226,6 +226,10 @@ class Node:
         self.messenger.send(msg_dict, peer)
 
 if __name__ == '__main__':
+    try:
+        shutil.rmtree('../files')
+    except OSError:
+        print('no files to delete? ')
     n0 = Node('0')
     n1 = Node('1')
     n2 = Node('2')

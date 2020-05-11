@@ -23,11 +23,9 @@ class Tx_Generator:
         while to_node == from_node:
             to_node = self.nodes[random.randrange(4)]
 
-        from_node = 'node' + from_node
-        to_node = 'node' + to_node
         amount = round(random.uniform(0.1, 2), 2)
 
-        return str(Transaction(_from=from_node, _to=to_node, amount=amount))
+        return str(Transaction(_from=str(from_node), _to=str(to_node), amount=amount))
 
     def format_for_SQS(self, message: dict) -> dict:
         SQSmsg = {}

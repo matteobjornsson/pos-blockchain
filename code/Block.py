@@ -54,8 +54,8 @@ if __name__ == '__main__':
     new_block = {
         'index': 1,
         'timestamp' : str(datetime.datetime.now()),
-        'transactions': [Transaction(_to='node1', _from='node2', amount=2.5),
-                         Transaction(_to='node3', _from='node2', amount=4.1)],
+        'transactions': [Transaction(_to='1', _from='2', amount=2.5),
+                         Transaction(_to='3', _from='2', amount=4.1)],
         'signatures': {'0': 3, '1': 3.0}
     }
     new_block['transactions'] = [str(tx) for tx in new_block['transactions']]

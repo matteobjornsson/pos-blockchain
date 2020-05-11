@@ -91,7 +91,7 @@ class Transaction:
 
 
 if __name__ == '__main__':
-    t = Transaction(_to='node1', _from='node2', amount=12.5)
+    t = Transaction(_to='1', _from='2', amount=12.5)
     print(str(t))
     jsonT = str(t)
     backToT = Transaction(json_string=jsonT)
