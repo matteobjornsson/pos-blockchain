@@ -22,6 +22,7 @@ class BlockChain:
         self.create_or_read_file()
 
     def verify_block(self, block) -> bool:
+
         return True
 
     def add_block(self, block):

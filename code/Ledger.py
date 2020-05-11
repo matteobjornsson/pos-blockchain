@@ -51,7 +51,10 @@ class Ledger:
 
         change = copy.deepcopy(self.blockchain_balances[index-1])  # get previous state
         for tx in transactions:  # apply all transactions to that state
-            change[tx.from_node] -= tx.amount
+            if tx.from_node != 'reward':
+                change[tx.from_node] -= tx.amount
+            else:
+                print(self.node_id, ' reward received!')
             change[tx.to_node] += tx.amount
         all_bad_tx = []
         for node, balance in change.items():
@@ -88,7 +91,10 @@ class Ledger:
         """
         change = copy.deepcopy(self.blockchain_balances[index - 1])  # get previous state
         for tx in transactions:  # apply all transactions to that state
-            change[tx.from_node] -= tx.amount
+            if tx.from_node != 'reward':
+                change[tx.from_node] -= tx.amount
+            else:
+                print(self.node_id, ' reward received!')
             change[tx.to_node] += tx.amount
         self.add_balance_state(change, index)
 
@@ -138,7 +144,7 @@ class Ledger:
         # dump to pickle
         ledger_string = 'Ledger: \n'
         for entry in self.blockchain_balances:
-            print(entry)
+            # print(entry)
             ledger_string += str(entry) + '\n'
 
         text_file = open(self.file_path, "w")
