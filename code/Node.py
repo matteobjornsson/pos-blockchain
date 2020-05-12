@@ -158,7 +158,7 @@ class Node:
             contents = msg['contents']
             self.transaction_queue.append(Transaction(contents))
 
-        elif msg['type'] == 'Block':  # if block process and reset mine function if valid
+        elif msg['type'] == 'Block' and self.genesis_time != 'not set':  # if block process and reset mine function if valid
             msg_dict = json.loads(msg['contents'])
             incoming_block = Block(msg_dict['block'])
             leader_id = msg_dict['leader_id']
