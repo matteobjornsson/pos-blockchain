@@ -211,4 +211,65 @@ lock all nodes into a 20 second "term" cycle
 block message:
 [block, leaderID, term]
 
+Video:
+6 points - Blockchain
+2 - correctly mines a block
+    look at the fact that we set a difficulty
+    then loop until difficulty matched
+        break hashing if new block received
+    mine on longest chain
+    replace chain if new longest discovered
+
+    show in blockchain txt that all blocks correct (prev hash, etc)
+
+1 - sends a block to other miners
+    print out the fact that miner sent block and others received block
+
+3 - miners verify incoming block and add to the blockchain
+    show code where we construct block, then rehash contents and check prev hash on chain to check
+
+14 points - Proof of Stake
+summary of protocol:
+    network roughly synched to a "production" cycle of 25s. Every term validators produce block based on set probability.
+    once produced, request leadership of network. (uses raft, roughly)
+        if leadership deadlocks then term is abandoned, wait till next term to elect new leader
+        technically, the first to produce a block is most likely to win leadership, but overall individual validators are
+            still limited to a specific production rate by signers, therefore will eventually be forced to share production
+    leader sends block to random node, nodes validate and sign stake = >1/2 tx value (2/3 of nodes)
+        in a real network this would be determined by tx fees, economy
+    nodes continue to forward block to other random nodes until block is fully signed.
+        either it succeds within the term or is abandoned for next term.
+    leader receives signed block and checks, adds to blockchain, sends block to all nodes. 
+
+1 - a verifier generates a block with probability p
+    show code where miner creates block with chance p
+    everyone who is allowed to make a block does so before election
+
+3 - verifiers reach consensus on accepted blocks
+    discuss use of RAFT leader election protocol (w/ minor adjustments)
+    one leader elected per node term
+
+3 - block signed with sufficient proof of stake
+    when leaders mine block they send to a node
+        nodes review stake, sign if block is valid, send to next random node if needs more stake, otherwise back to leader
+
+1 - signed block contains no double spending events
+    each transaction has unique ID
+    before adding to blockchain transactions are checked so that all spenders have the funds
+    once added to blockchain, tx deleted from tx queue
+
+    checked by leader upon generating block
+    checked by each follower before signing stake
+    assumed valid if sufficiently signed
+
+2 - signed block does not exceed p for client
+    for each block sent by leader, all nodeds check production rate of that leader node. If exceeds p, then block discarded
+    calculated by blocks per term
+        -automatically resolves production rate (leader did not add block that term)
+
+2 - verifiers get reward for creating a block
+
+2 - verifiers get reward for signing a block
+    when leader receives sufficiently signed block
+
 
