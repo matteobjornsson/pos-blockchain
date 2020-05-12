@@ -6,10 +6,10 @@ from leaderelection import leaderElection
 from Block import Block
 from Messenger import Messenger
 from threading import Thread
-from time import sleep, clock
+from time import sleep
 from datetime import datetime
 from dateutil import parser as date_parser
-import json, copy, collections, random, math, shutil
+import json, copy, collections, random, math, sys
 import cryptography
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
@@ -299,26 +299,12 @@ class Node:
         self.messenger.send(msg_dict, peer)
 
 if __name__ == '__main__':
-    try:
-        shutil.rmtree('../files')
-    except OSError:
-        print('no files to delete? ')
-    n0 = Node('0')
-    n1 = Node('1')
-    n2 = Node('2')
-    n3 = Node('3')
+    arg = sys.argv[1]
+    n = Node(arg)
 
     print('constructors finished')
-    synched = False
-    count = 0
-    while not synched or len(n3.all_public_keys) < 4:
-        count = 0
-        for n in [n0, n1, n2, n3]:
-            synched_nodes = len(n.nodes_online)
-            if synched_nodes > 3:
-                count += 1
-        if count == 4:
-            sleep(1)
-            break
-    for n in [n0, n1, n2, n3]:
-        n.start_mining_thread()
+
+    while len(n.all_public_keys) < 4:
+        continue
+    sleep(1)
+    n.start_mining_thread()
