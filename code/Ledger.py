@@ -48,7 +48,7 @@ class Ledger:
         :return: bool, list. Return True, [new balance dict] if all valid, otherwise return false, [bad transactions] if
         transactions cause any balance to go negative.
         """
-        print('transaction verification incoming index: ', index, type(index))
+        #print('transaction verification incoming index: ', index, type(index))
         change = copy.deepcopy(self.blockchain_balances[index-1])  # get previous state
         for tx in transactions:  # apply all transactions to that state
             if tx.from_node != 'reward':

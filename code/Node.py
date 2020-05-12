@@ -5,11 +5,16 @@ from BlockChain import BlockChain
 from leaderelection import leaderElection
 from Block import Block
 from Messenger import Messenger
-from threading import Thread, enumerate, Timer
+from threading import Thread
 from time import sleep, clock
 from datetime import datetime
 from dateutil import parser as date_parser
-import  json, hashlib, copy, collections, sys, random, math, shutil
+import json, copy, collections, random, math, shutil
+import cryptography
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives import serialization, hashes
+
 
 
 class Node:
@@ -24,24 +29,33 @@ class Node:
         self.file_path = '../files/blockchain' + node_id + '.txt'
         self.ledger = Ledger(node_id)
         self.blockchain = BlockChain(self.node_id, self.ledger)
-        self.probability = 0.8
+        self.probability = 0.1
         self.term_duration = 20
         self.le = leaderElection(self.node_id)
         self.leader_counts = {'0': 0, '1': 0, '2': 0, '3': 0}
         # self.elected_boolean = False
-        self.sig = 'check it out this is my gd signature: ' + self.node_id
+        self.sig = 'SUPER SECRET SIGNATURE FOR NODE ' + self.node_id
 
         self.messenger = Messenger(self.node_id, self)
         self.peers = [peer for peer in ['0', '1', '2', '3'] if peer != self.node_id]
         self.transaction_queue = []
 
-        self.signatures = ['check it out this is my gd signature: ' + peer for peer in self.peers]
-        self.received_blocks = collections.deque()
 
+        self.received_blocks = collections.deque()
+        self.secret_message =  b'SECRET TUNNEL!'
         self.nodes_online = []
+        self.all_public_keys = {}
+        self.private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+        self.all_public_keys[self.node_id} = self.private_key.public_key()
         self.sync_nodes()
         self.genesis_time = 'not set'
         self.term = 0
+
+
 
         self.start_mining_thread()
 
@@ -49,6 +63,13 @@ class Node:
         start_time = datetime.now()
         self.nodes_online.append(start_time)
         self.send_blockchain_msg(type='sync', contents={'start_time': str(start_time)})
+
+        public_key_string = self.all_public_keys[self.node_id].public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode("utf-8")
+        self.send_blockchain_msg(type='key', contents={'key': public_key_string, 'sender': self.node_id})
+
 
     def start_mining_thread(self) -> Thread:
         """
@@ -87,16 +108,18 @@ class Node:
         print("I hope I'm leader!!! : ", self.le.election_state, "\n")
 
         mined_probability = random.random()
-        if True: # mined_probability > self.probability:
+        if len(self.transaction_queue) != 0: #mined_probability > self.probability and
             tx_to_mine = self.transaction_queue
             new_index = self.blockchain.get_last_block().index + 1
             verify_boolean, change_or_bad_tx = self.ledger.verify_transaction(tx_to_mine, new_index )
             while not verify_boolean:
+                print('BAD TRANSACTIONS DETECTED. PANIC!')
                 self.transaction_queue = [tx for tx in self.transaction_queue if tx.unique_id not in change_or_bad_tx]
                 verify_boolean, change_or_bad_tx = self.ledger.verify_transaction(tx_to_mine, new_index)
             new_block = Block(index=new_index, transactions=tx_to_mine)
-            self.send_blockchain_msg(type='Block', contents={'block': str(new_block), 'leader_id': self.node_id, 'term': self.term})
-            print(self.node_id, " has mined and sent a block")
+            to_node = self.peers[random.randrange(len(self.peers))]
+            self.send_peer_msg(type='Block', contents={'block': str(new_block), 'leader_id': self.node_id, 'term': self.term, 'history': json.dumps([self.node_id])}, peer=to_node)
+            print(self.node_id, " has mined and sent a block to ", to_node)
 
         self.le.release_leadership()
 
@@ -117,8 +140,9 @@ class Node:
             incoming_block = Block(msg_dict['block'])
             leader_id = msg_dict['leader_id']
             block_term = int(msg_dict['term'])
+            block_history = json.loads(msg_dict['history'])
             # print("\nIncoming Block received: \n", incoming_block, block_term, leader_id, '\n incoming term : ', block_term)
-            self.process_incoming_block(block=incoming_block, term=block_term, leader_id=leader_id)
+            self.process_incoming_block(block=incoming_block, term=block_term, leader_id=leader_id, block_history=block_history)
 
         elif msg['type'] == 'sync':
             msg_dict = json.loads(msg['contents'])
@@ -128,6 +152,20 @@ class Node:
                 # print("synched!")
                 self.genesis_time = max(self.nodes_online)
                 print('genesis time = ', self.genesis_time)
+
+        elif msg['type'] == 'key':
+            msg_dict = json.loads(msg['contents'])
+            incoming_public_key = serialization.load_pem_public_key(
+                msg_dict['key'].encode("utf-8"),
+                backend=default_backend()
+            )
+            self.all_public_keys[msg_dict['sender']] = incoming_public_key
+
+
+
+
+
+
 
         # elif msg['type'] == 'reward':
         #     reward = int(msg['contents'])
@@ -145,7 +183,7 @@ class Node:
         delete_transactions = copy.deepcopy(block.transactions)
         self.transaction_queue = [x for x in self.transaction_queue if x not in delete_transactions]
 
-    def process_incoming_block(self, block: Block, term: int, leader_id: str):
+    def process_incoming_block(self, block: Block, term: int, leader_id: str, block_history: list):
         """
         check if incoming block is sufficently staked. If so add to blockchain. Otherwise, if leader send it for more
         signatures. if follower, sign and send back to leader.
@@ -155,7 +193,7 @@ class Node:
         :return: None
         """
         # process block returns true if it is valid and added to blockchain and ledger
-        print('received term: ', term, " self term: ", self.term)
+        print('==================================received term: ', term, " self term: ", self.term, 'self.node_id: ', self.node_id, '\n+++++++++++++++++++++++++++++++++++++++++++++++++++')
         if term == self.term and block.index == self.blockchain.get_last_block().index+1:
             # print('self.node_id :', self.node_id, ' leader_id :', leader_id)
             if self.node_id != leader_id: # if node is a follower
@@ -164,16 +202,24 @@ class Node:
                     self.add_to_blockchain(block, leader_id)
 
                 else:
-                    print("follower ", self.node_id, "received block to verify")
+                    #print("follower ", self.node_id, "received block to verify")
                     # if sender does not exceed block generation rate, do this:
                     valid_boolean, change_or_bad_tx = self.ledger.verify_transaction(block.transactions, block.index)
-                    print('generation rate: ', self.leader_counts[leader_id]/self.term)
+                    #print('generation rate: ', self.leader_counts[leader_id]/self.term)
                     if (self.leader_counts[leader_id]/self.term) < self.probability:
                         if valid_boolean and self.sig not in block.signatures.keys():
                             print('stake to be sent ', sum([tx.amount for tx in block.transactions])/2 + .1)
                             block.signatures[self.sig] = sum([tx.amount for tx in block.transactions])/2 + .1
-                            contents = {'block': str(block), 'leader_id': leader_id, 'term': str(term)}
-                            self.send_peer_msg(type='Block', contents=contents, peer=leader_id)
+                            block_history.append(self.node_id)
+                            contents = {'block': str(block), 'leader_id': leader_id, 'term': str(term), 'history': json.dumps(block_history)}
+                            if block.verify_proof_of_stake():
+                                self.send_peer_msg(type='Block', contents=contents, peer=leader_id)
+                            else:
+                                options = [peer for peer in self.peers if peer not in block_history]
+                                print ('block history at ', self.node_id, ': ', block_history, '. Options: ', options)
+                                to_node = options[random.randrange(len(options))]
+                                self.send_peer_msg(type='Block', contents=contents, peer=to_node)
+
             else:
                 # print('leader received block from followers')
                 if block.verify_proof_of_stake():
@@ -185,13 +231,13 @@ class Node:
                     print('Reward these hard working folx: ', rewardees)
                     for peer in rewardees:
                         reward_tx = str(Transaction(_to=peer, _from='reward', amount=1))
-                        msg = {'type': 'Transaction', 'contents': reward_tx}
-                        self.messenger.send(msg, peer[-1])
+                        for destination in ['0', '1', '2', '3']:
+                            self.messenger.send({'type': 'Transaction', 'contents': reward_tx}, destination)
 
                 # if stake was sufficient, block will be complete, otherwise block will go get more signatures
                 else:
                     print("leader ", self.node_id, "needs more signatures")
-                self.send_blockchain_msg(type='Block', contents={'block': str(block), 'leader_id': leader_id, 'term': term})
+                self.send_blockchain_msg(type='Block', contents={'block': str(block), 'leader_id': leader_id, 'term': term, 'history': json.dumps(block_history)})
 
     # - process block method checks received block data:
     # if leader ID == self and term == term, combine received signatures, if > tx value, do the thing
