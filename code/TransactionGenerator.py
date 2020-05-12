@@ -65,7 +65,7 @@ if __name__ == '__main__':
             else:
                 sleep(random.uniform(0.1, 1))
                 txg.send(msg_dict, node)
-        sleep(6)
+        sleep(10)
 
         # if msg['type'] == 'Transaction':  # if transaction append to tx queue
         #     contents = json.loads(msg['contents'])

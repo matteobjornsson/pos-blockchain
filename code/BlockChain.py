@@ -64,7 +64,17 @@ class BlockChain:
                 if k == 'transactions':
                     blockchain_string += k + ':\n'
                     for tx in v:
-                        blockchain_string += '\t' + str(tx) + '\n'
+                        tx_short = copy.deepcopy(tx)
+                        new_tx = {}
+                        for k2, v2 in tx_short.items():
+                            #"2020-05-12 18:20:25.659289"
+                            if k2 == 'timestamp':
+                                new_tx[k2] = v2[10:21]
+                            elif k2 == 'unique_id':
+                                new_tx[k2] = v2[:5] + '...'
+                            else:
+                                new_tx[k2] = v2
+                        blockchain_string += '\t' + str(new_tx) + '\n'
                 elif k == 'signatures':
                     v_short = copy.deepcopy(v)
                     new_sig = {}
