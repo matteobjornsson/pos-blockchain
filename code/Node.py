@@ -35,7 +35,7 @@ class Node:
         self.leader_counts = {'0': 0, '1': 0, '2': 0, '3': 0}
         # self.elected_boolean = False
 
-        self.messenger = Messenger(self.node_id, self)
+
         self.peers = [peer for peer in ['0', '1', '2', '3'] if peer != self.node_id]
         self.transaction_queue = []
 
@@ -59,6 +59,7 @@ class Node:
         ).hex()
         self.peer_signatures = {}
         self.all_public_keys[self.node_id] = self.private_key.public_key()
+        self.messenger = Messenger(self.node_id, self)
         self.sync_nodes()
         self.genesis_time = 'not set'
         self.term = 0
