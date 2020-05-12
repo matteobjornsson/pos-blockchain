@@ -34,7 +34,6 @@ class Node:
         self.le = leaderElection(self.node_id)
         self.leader_counts = {'0': 0, '1': 0, '2': 0, '3': 0}
         # self.elected_boolean = False
-        self.sig = 'SUPER SECRET SIGNATURE FOR NODE ' + self.node_id
 
         self.messenger = Messenger(self.node_id, self)
         self.peers = [peer for peer in ['0', '1', '2', '3'] if peer != self.node_id]
@@ -50,14 +49,20 @@ class Node:
             key_size=2048,
             backend=default_backend()
         )
-        self.all_public_keys[self.node_id} = self.private_key.public_key()
+        self.sig = self.private_key.sign(
+            self.secret_message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        ).hex()
+
+        self.all_public_keys[self.node_id] = self.private_key.public_key()
         self.sync_nodes()
         self.genesis_time = 'not set'
         self.term = 0
 
-
-
-        self.start_mining_thread()
 
     def sync_nodes(self):
         start_time = datetime.now()
@@ -155,12 +160,24 @@ class Node:
 
         elif msg['type'] == 'key':
             msg_dict = json.loads(msg['contents'])
+            sender = msg_dict['sender']
+            key_string = msg_dict['key'].encode("utf-8")
+
             incoming_public_key = serialization.load_pem_public_key(
-                msg_dict['key'].encode("utf-8"),
+                key_string,
                 backend=default_backend()
             )
-            self.all_public_keys[msg_dict['sender']] = incoming_public_key
+            print('initial key type ', type(incoming_public_key))
+            self.all_public_keys[sender] = incoming_public_key
+            if len(self.all_public_keys) > 3:
+                for key in self.all_public_keys:
+                    print('after key type ', type(key), key)
 
+        # key_string = msg_dict['key'].encode("utf-8")
+        # incoming_public_key = serialization.load_pem_public_key(
+        #     key_string,
+        #     backend=default_backend()
+        # )
 
 
 
@@ -183,6 +200,32 @@ class Node:
         delete_transactions = copy.deepcopy(block.transactions)
         self.transaction_queue = [x for x in self.transaction_queue if x not in delete_transactions]
 
+    def verify_all_signatures(self, block: Block) -> bool:
+        signatures = block.signatures
+        valid_sig_count = 0
+        for sig in signatures:
+            for public_key in self.all_public_keys.values():
+                print('what is this key: ', type(public_key), public_key)
+                try:
+                    public_key.verify(
+                        bytes.fromhex(sig),
+                        self.secret_message,
+                        padding.PSS(
+                            mgf=padding.MGF1(hashes.SHA256()),
+                            salt_length=padding.PSS.MAX_LENGTH
+                        ),
+                        hashes.SHA256()
+                    )
+                    valid_sig_count += 1
+                    print("signature validated!")
+                except cryptography.exceptions.InvalidSignature:
+                    pass
+        if len(signatures) == valid_sig_count:
+            return True
+        else:
+            return False
+
+
     def process_incoming_block(self, block: Block, term: int, leader_id: str, block_history: list):
         """
         check if incoming block is sufficently staked. If so add to blockchain. Otherwise, if leader send it for more
@@ -198,7 +241,7 @@ class Node:
             # print('self.node_id :', self.node_id, ' leader_id :', leader_id)
             if self.node_id != leader_id: # if node is a follower
                 print('incoming block index: ', block.index, ' last block index: ', self.blockchain.get_last_block().index)
-                if block.verify_proof_of_stake():
+                if block.verify_proof_of_stake() and self.verify_all_signatures(block):
                     self.add_to_blockchain(block, leader_id)
 
                 else:
@@ -284,7 +327,7 @@ if __name__ == '__main__':
     print('constructors finished')
     synched = False
     count = 0
-    while not synched:
+    while not synched or len(n3.all_public_keys) < 4:
         count = 0
         for n in [n0, n1, n2, n3]:
             synched_nodes = len(n.nodes_online)
@@ -293,3 +336,5 @@ if __name__ == '__main__':
         if count == 4:
             sleep(1)
             break
+    for n in [n0, n1, n2, n3]:
+        n.start_mining_thread()
