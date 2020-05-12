@@ -2,19 +2,26 @@ from time import sleep, clock
 from threading import Thread, Timer
 import random
 
-class Election_Timer:
+
+class ElectionTimer:
 
     def __init__(self, duration: float, target):
+        """
+        Creates a timer to reset elections every time a 'term' has elapsed.
+
+        :param duration:
+        :param target:
+        """
         self.target = target
         self.duration = duration
         self.running = False
         self.restart = False
         self.stop = False
 
-        t = Thread( 
-			target=self.run, 
-			name='Election Timer Thread'
-			)
+        t = Thread(
+            target=self.run,
+            name='Election Timer Thread'
+        )
         t.start()
 
     def kill_thread(self):
@@ -28,12 +35,12 @@ class Election_Timer:
         self.stop = False
 
     def new_timeout(self) -> float:
-        return (self.duration + 2*self.duration * random.random())
+        return self.duration + 2 * self.duration * random.random()
 
     def run(self):
         # randomize timeouts to avoid conflicting elections
         timeout = self.new_timeout()
-        #start the timer
+        # start the timer
         start = clock()
         count = 0
         while self.running:
@@ -52,5 +59,5 @@ class Election_Timer:
                     break
                 else:
                     if count > 200000:
-                        print('Election Timer: ', timeout-elapsed_time)  
-                        count =0
+                        print('Election Timer: ', timeout - elapsed_time)
+                        count = 0

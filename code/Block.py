@@ -1,9 +1,10 @@
 import json, hashlib, datetime, copy
 from Transaction import Transaction
 
+
 class Block:
 
-    def __init__(self, json_string: str = '',  timestamp: str = '',
+    def __init__(self, json_string: str = '', timestamp: str = '',
                  transactions: list = [], index: int = 0):
         """
         Constructor for a Block.
@@ -25,7 +26,7 @@ class Block:
             self.index = index
             self.timestamp = str(datetime.datetime.now())
             self.transactions = transactions
-            self.signatures = {} #'key':value -> 'unique node signature':stake
+            self.signatures = {}  # 'key':value -> 'unique node signature':stake
 
     def __str__(self):
         """
@@ -33,27 +34,32 @@ class Block:
 
         :return: str.
         """
-        blockDict = copy.deepcopy(self.__dict__)
-        blockDict['transactions'] = [str(tx) for tx in blockDict['transactions']]
-        return json.dumps(blockDict)
+        block_dict = copy.deepcopy(self.__dict__)
+        block_dict['transactions'] = [str(tx) for tx in block_dict['transactions']]
+        return json.dumps(block_dict)
 
     def verify_proof_of_stake(self):
+        """
+        Check if the block has gathered sufficient stake from the signatures.
+
+        :return: Boolean. True if enough stake was signed, False if there is not enough stake.
+        """
         sum_stake = 0
-        for k,v in self.signatures.items():
+        for k, v in self.signatures.items():
             # print('looping through signatures key: ', k, 'value: ', v, '\n')
             sum_stake += v
-        #print('block signature sums: ', sum_stake, 'transaction sums: ', sum([tx.amount for tx in self.transactions]), '\n')
+        # If there is enough stake, return True
         if sum_stake > sum([tx.amount for tx in self.transactions]):
-            #print('verified proof of stake')
             return True
+        # This means there was not enough stake
         else:
-            #print('not enough stake?')
             return False
+
 
 if __name__ == '__main__':
     new_block = {
         'index': 1,
-        'timestamp' : str(datetime.datetime.now()),
+        'timestamp': str(datetime.datetime.now()),
         'transactions': [Transaction(_to='1', _from='2', amount=2.5),
                          Transaction(_to='3', _from='2', amount=4.1)],
         'signatures': {'0': 3, '1': 3.0}

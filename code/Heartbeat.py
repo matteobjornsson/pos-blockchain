@@ -2,11 +2,18 @@ from time import sleep, clock
 from threading import Thread, Timer
 import random
 
+
 class Heartbeat:
 
     def __init__(self, duration: float, target):
+        """
+        Class to send heartbeat messages to check liveness of nodes and their status.
+
+        :param duration: Length between heartbeats
+        :param target: Whoever the leader is sends the heartbeat to other nodes.
+        """
         self.target = target
-        self.duration = duration/8
+        self.duration = duration / 8
         self.running = True
         self.restart = False
         self.stop = True
@@ -27,16 +34,13 @@ class Heartbeat:
         self.restart = True
         self.stop = False
 
-    #def new_timeout(self) -> float:
-    #   return (self.duration + self.duration * random.random())
-
     def run(self):
-        #start the timer
+        # start the timer
         start = clock()
         count = 0
         while self.running:
             while not self.stop:
-                count+=1
+                count += 1
                 if self.restart:
                     start = clock()
                     self.restart = False
@@ -49,6 +53,5 @@ class Heartbeat:
                         self.restart = True
                     break
                 else:
-                    if count > 10000:  
-                        #print('Heartbeat Timer: ', self.duration-elapsed_time)
+                    if count > 10000:
                         count = 0
