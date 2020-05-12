@@ -1,4 +1,3 @@
-from Ledger import *
 from Transaction import Transaction
 from Ledger import Ledger
 from BlockChain import BlockChain
@@ -9,8 +8,7 @@ from threading import Thread
 from time import sleep
 from datetime import datetime
 from dateutil import parser as date_parser
-import json, copy, collections, random, math, sys
-import cryptography
+import json, copy, collections, random, math, sys, cryptography
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
@@ -22,6 +20,9 @@ class Node:
     def __init__(self, node_id: str):
         """
         Constructor for the Node class.
+        Synchronizes nodes.
+        Starts messaging and mining threads.
+        Creates files to store data.
 
         :param str node_id: one of '0', '1', '2', or '3', the possible nodes in network
         """
@@ -66,6 +67,10 @@ class Node:
 
 
     def sync_nodes(self):
+        """
+        Method to synchronize all nodes for receiving and sending messages over the queue.
+        Blockchain cannot start until all nodes are live and have generated their private/public key pairs.
+        """
         start_time = datetime.now()
         self.nodes_online.append(start_time)
         self.send_blockchain_msg(type='sync', contents={'start_time': str(start_time)})
@@ -88,10 +93,16 @@ class Node:
             name=('Mining Threads' + self.node_id)
         )
         t.start()
-        print('mining thread started')
+        print('Mining thread started.')
         return t
 
     def mining_thread(self):
+        """
+        Waits to start mining until all nodes are initialized.
+        Calculates current term based on genesis time and timestamp.
+        Starts mining a block every time a new term begins (e.g. every 20 or 25 seconds)
+        :return:
+        """
         while True:
             if self.genesis_time != 'not set':
                 term = self.term
@@ -101,37 +112,43 @@ class Node:
                 if new_term > term:
                     # reset all flags
                     self.term = new_term
-                    self.mine_block(self.term)
+                    self.mine_block()
 
-    def mine_block(self, term: int):
+    def mine_block(self):
+        """
+        The actual mining of a block.
+
+        Generates a block with a certain probability, if a block was generated, the node requests leadership.
+        Leadership is granted through the RAFT algorithm, which has been slightly adjusted to suit this purpose.
+        Whichever node was elected sends generated block to all other nodes for verification and signing.
+        """
         sleep(random.random()*2)
-        self.le.request_leadership()
-        sleep(5)
-        if self.le.election_state != 'leader':
-            print('no leader elected \n')
-            return
-        sleep(.5)
-        print("I hope I'm leader!!! : ", self.le.election_state, "\n")
-
         mined_probability = random.random()
-        if len(self.transaction_queue) != 0: #mined_probability > self.probability and
+        if mined_probability > self.probability and len(self.transaction_queue) != 0:
             tx_to_mine = self.transaction_queue
             new_index = self.blockchain.get_last_block().index + 1
-            verify_boolean, change_or_bad_tx = self.ledger.verify_transaction(tx_to_mine, new_index )
+            verify_boolean, change_or_bad_tx = self.ledger.verify_transaction(tx_to_mine, new_index)
             while not verify_boolean:
-                print('BAD TRANSACTIONS DETECTED. PANIC!')
                 self.transaction_queue = [tx for tx in self.transaction_queue if tx.unique_id not in change_or_bad_tx]
                 verify_boolean, change_or_bad_tx = self.ledger.verify_transaction(tx_to_mine, new_index)
             new_block = Block(index=new_index, transactions=tx_to_mine)
             to_node = self.peers[random.randrange(len(self.peers))]
+
+            self.le.request_leadership()
+            sleep(5)
+            if self.le.election_state != 'leader':
+                return
+            sleep(.5)
+            print('I have been elected as leader.')
             self.send_peer_msg(type='Block', contents={'block': str(new_block), 'leader_id': self.node_id, 'term': self.term, 'history': json.dumps([self.node_id])}, peer=to_node)
             print(self.node_id, " has mined and sent a block to ", to_node)
 
-        self.le.release_leadership()
+            self.le.release_leadership()
 
     def handle_incoming_message(self, msg: dict):
         """
         Handles incoming messages from the Messenger class in dictionary format.
+        Four types of messages exist: Transactions, Blocks, Sync, and Key messages.
 
         :param msg: dict. Message attributes represented as string key value pairs.
         :return: None
@@ -172,8 +189,16 @@ class Node:
             self.all_public_keys[sender] = incoming_public_key
             self.peer_signatures[sig] = sender
 
-
     def add_to_blockchain(self, block, leader_id):
+        """
+        Method to add a block to the blockchain after it has been verified.
+        Deletes block transactions from transaction queue to avoid double transactions.
+        Keeps track of whichever node generated a block to determine whether generation rate exceeds probability.
+
+        :param block: The block to be added, contains transactions to be removed
+        :param leader_id: Who generated the block
+        :return:
+        """
         self.blockchain.add_block(block)
         self.ledger.add_transactions(block.transactions, block.index)
         if self.node_id == leader_id:
@@ -186,6 +211,13 @@ class Node:
         self.transaction_queue = [x for x in self.transaction_queue if x not in delete_transactions]
 
     def verify_all_signatures(self, block: Block) -> bool:
+        """
+        Verifies encoded signatures by using a secret message.
+        This ensures the message came from one of the known, i.e., trustworthy nodes, by decoding using saved public keys.
+
+        :param block:
+        :return:
+        """
         signatures = block.signatures
         valid_sig_count = 0
         for sig in signatures.keys():
@@ -214,28 +246,30 @@ class Node:
         """
         check if incoming block is sufficently staked. If so add to blockchain. Otherwise, if leader send it for more
         signatures. if follower, sign and send back to leader.
+
         :param block: block in question
         :param term: blockchain cycle identifier
         :param leader_id: who generated the block
+        :param block_history: List of nodes that have signed the block
         :return: None
         """
         # process block returns true if it is valid and added to blockchain and ledger
         print('==================================received term: ', term, " self term: ", self.term, 'self.node_id: ', self.node_id, '\n+++++++++++++++++++++++++++++++++++++++++++++++++++')
         if term == self.term and block.index == self.blockchain.get_last_block().index+1:# and self.verify_all_signatures(block):
-            # print('self.node_id :', self.node_id, ' leader_id :', leader_id)
-            if self.node_id != leader_id: # if node is a follower
-                print('incoming block index: ', block.index, ' last block index: ', self.blockchain.get_last_block().index)
+            # if node is a follower
+            if self.node_id != leader_id:
+                # Check if there is enough stake
                 if block.verify_proof_of_stake():
                     self.add_to_blockchain(block, leader_id)
 
                 else:
-                    #print("follower ", self.node_id, "received block to verify")
-                    # if sender does not exceed block generation rate, do this:
+                    # verify transactions through ledger
                     valid_boolean, change_or_bad_tx = self.ledger.verify_transaction(block.transactions, block.index)
-                    #print('generation rate: ', self.leader_counts[leader_id]/self.term)
+                    # Check node that sent the block does not exceed generation rate. Otherwise, no block is added.
+                    # This prevents a node from sending too many blocks (i.e., taking control of the chain).
                     if (self.leader_counts[leader_id]/self.term) < self.probability:
                         if valid_boolean and self.sig not in block.signatures.keys():
-                            print('stake to be sent ', sum([tx.amount for tx in block.transactions])/2 + .1)
+                            print('Signing block with stake: ', sum([tx.amount for tx in block.transactions])/2 + .1)
                             block.signatures[self.sig] = sum([tx.amount for tx in block.transactions])/2 + .1
                             block_history.append(self.node_id)
                             contents = {'block': str(block), 'leader_id': leader_id, 'term': str(term), 'history': json.dumps(block_history)}
@@ -243,16 +277,13 @@ class Node:
                                 self.send_peer_msg(type='Block', contents=contents, peer=leader_id)
                             else:
                                 options = [peer for peer in self.peers if peer not in block_history]
-                                print ('block history at ', self.node_id, ': ', block_history, '. Options: ', options)
                                 to_node = options[random.randrange(len(options))]
                                 self.send_peer_msg(type='Block', contents=contents, peer=to_node)
-
+            # Node is leader
             else:
-                # print('leader received block from followers')
+                # Check if there is enough stake
                 if block.verify_proof_of_stake():
                     self.add_to_blockchain(block, leader_id)
-
-                    # TODO: REWARD ERRYBODY FOR ALL THEIR HARD WORK, ALSO TREAT YO'SELF TOO
                     rewardees = [self.peer_signatures[sig] for sig in block.signatures.keys()]
                     rewardees.append(self.node_id)
                     print('Reward these hard working folx: ', rewardees)
@@ -267,11 +298,6 @@ class Node:
                 self.send_blockchain_msg(type='Block', contents={'block': str(block), 'leader_id': leader_id, 'term': term, 'history': json.dumps(block_history)})
 
 
-    # - process block method checks received block data:
-    # if leader ID == self and term == term, combine received signatures, if > tx value, do the thing
-    # if not leader ID and not > tx value, verify and sign and send back to Leader ID
-    # if not leader ID and > tx value, add to blockchain
-
     def send_blockchain_msg(self, contents: dict, type: str):
         """
         sends msgs to all peers
@@ -284,7 +310,6 @@ class Node:
         msg_dict = {'contents': json.dumps(contents), 'type': type}
         for peer in self.peers:
             self.messenger.send(msg_dict, peer)
-        #print('sending msg dictionary: ', msg_dict)
 
     def send_peer_msg(self, contents: dict, type: str, peer: str):
         """
@@ -295,9 +320,9 @@ class Node:
         :param peer: str. destination
         :return: None
         """
-        # send block to all known peers
         msg_dict = {'contents': json.dumps(contents), 'type': type}
         self.messenger.send(msg_dict, peer)
+
 
 if __name__ == '__main__':
     arg = sys.argv[1]
