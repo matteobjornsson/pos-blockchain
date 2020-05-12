@@ -221,7 +221,7 @@ class Node:
         valid_sig_count = 0
         for sig in signatures.keys():
             for public_key in self.all_public_keys.values():
-                print('what is this key: ', type(public_key), public_key)
+                # print('what is this key: ', type(public_key), public_key)
                 try:
                     public_key.verify(
                         bytes.fromhex(sig),
@@ -253,7 +253,7 @@ class Node:
         :return: None
         """
         # process block returns true if it is valid and added to blockchain and ledger
-        print('==================================received term: ', term, " self term: ", self.term, 'self.node_id: ',
+        #print('==================================received term: ', term, " self term: ", self.term, 'self.node_id: ',
               self.node_id, '\n+++++++++++++++++++++++++++++++++++++++++++++++++++')
         if term == self.term and block.index == self.blockchain.get_last_block().index + 1:  # and self.verify_all_signatures(block):
             # if node is a follower
