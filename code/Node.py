@@ -254,7 +254,7 @@ class Node:
         """
         # process block returns true if it is valid and added to blockchain and ledger
         #print('==================================received term: ', term, " self term: ", self.term, 'self.node_id: ',
-              self.node_id, '\n+++++++++++++++++++++++++++++++++++++++++++++++++++')
+              #self.node_id, '\n+++++++++++++++++++++++++++++++++++++++++++++++++++')
         if term == self.term and block.index == self.blockchain.get_last_block().index + 1:  # and self.verify_all_signatures(block):
             # if node is a follower
             if self.node_id != leader_id:
