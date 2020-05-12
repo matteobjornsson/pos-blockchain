@@ -10,6 +10,7 @@ class BlockChain:
         Constructor initializes a BlockChain using a Genesis Block. Only used if no chain already on disk when Node.py
         starts up.
 
+        :param node_id: str. One of '0', '1', '2', or '3', the possible nodes in network.
         :param ledger: Ledger. Reference to ledger passed to constructor for reference.
         """
         self.ledger = ledger
@@ -20,10 +21,6 @@ class BlockChain:
         self.blockchain = []
         self.saved_blocks = []
         self.create_or_read_file()
-
-    def verify_block(self, block) -> bool:
-
-        return True
 
     def add_block(self, block):
         """
@@ -37,7 +34,6 @@ class BlockChain:
         else:
             self.blockchain[block.index] = block
         self.write_to_disk()
-
 
     def get_last_block(self) -> Block:
         """

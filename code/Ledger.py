@@ -48,21 +48,21 @@ class Ledger:
         :return: bool, list. Return True, [new balance dict] if all valid, otherwise return false, [bad transactions] if
         transactions cause any balance to go negative.
         """
-        #print('transaction verification incoming index: ', index, type(index))
+
         change = copy.deepcopy(self.blockchain_balances[index-1])  # get previous state
         for tx in transactions:  # apply all transactions to that state
             if tx.from_node != 'reward':
                 change[tx.from_node] -= tx.amount
             else:
-                print(self.node_id, ' reward received!')
+                print(self.node_id, ' received a reward!')
             change[tx.to_node] += tx.amount
         all_bad_tx = []
         for node, balance in change.items():
             if balance < 0:
-                print('found negative balance')
+                print('Found negative balance.')
                 all_bad_tx.extend([tx.unique_id for tx in transactions if tx.from_node == node])
         if all_bad_tx:
-            print('bad transactions found: ', all_bad_tx)
+            print('Bad transactions were found: ', all_bad_tx)
             return False, all_bad_tx
         else:
             return True, [change]
@@ -119,7 +119,8 @@ class Ledger:
 
     def create_or_read_file(self):
         """
-        Check for existing Ledger on disk, else create Ledger
+        Check for existing Ledger on disk, else create Ledger.
+
         :return: None
         """
         # make sure the 'files' directory exists
@@ -130,7 +131,7 @@ class Ledger:
             read_file = open(self.pickle_path, 'rb')
             self.blockchain_balances = pickle.load(read_file)
             read_file.close()
-            print('Ledger loaded from file')
+            print('Ledger loaded from file.')
         except FileNotFoundError:
             # if no ledger exists, initialize one with the initial balances
             self.blockchain_balances = [{'0': 10, '1': 10, '2': 10, '3': 10}]
@@ -138,13 +139,13 @@ class Ledger:
 
     def write_to_disk(self):
         """
-        dump ledger contents to pickle on disk
+        Dump ledger contents to pickle on disk.
+
         :return: None
         """
         # dump to pickle
         ledger_string = 'Ledger: \n'
         for entry in self.blockchain_balances:
-            # print(entry)
             ledger_string += str(entry) + '\n'
 
         text_file = open(self.file_path, "w")
