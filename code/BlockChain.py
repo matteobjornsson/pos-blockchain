@@ -79,7 +79,7 @@ class BlockChain:
                     v_short = copy.deepcopy(v)
                     new_sig = {}
                     for k2, v2 in v_short.items():
-                        new_sig[k2[:5]+'...'] = v2
+                        new_sig[k2[:8]+'...'] = v2
                     blockchain_string += k + ': ' + str(new_sig) + '\n'
                 else:
                     blockchain_string += k + ': ' + str(v) + '\n'
