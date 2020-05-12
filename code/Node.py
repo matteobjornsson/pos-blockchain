@@ -33,7 +33,7 @@ class Node:
         ############################################################# reference for video
         self.term_duration = 25
         ############################################################# reference for video
-        self.le = leaderElection(self.node_id)
+        self.le = LeaderElection(self.node_id)
         self.leader_counts = {'0': 0, '1': 0, '2': 0, '3': 0}
         # self.elected_boolean = False
 
