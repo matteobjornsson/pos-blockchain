@@ -91,8 +91,6 @@ class Ledger:
         for tx in transactions:  # apply all transactions to that state
             if tx.from_node != 'reward':
                 change[tx.from_node] -= tx.amount
-            else:
-                print(self.node_id, ' reward received!')
             change[tx.to_node] += tx.amount
         self.add_balance_state(change, index)
 
