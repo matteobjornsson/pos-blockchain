@@ -1,7 +1,7 @@
 from Block import Block
 from Transaction import Transaction
 from Ledger import Ledger
-import datetime, hashlib, json, os, pickle, collections
+import datetime, os, pickle, collections, copy
 
 
 class BlockChain:
@@ -65,6 +65,11 @@ class BlockChain:
                     blockchain_string += k + ':\n'
                     for tx in v:
                         blockchain_string += '\t' + str(tx) + '\n'
+                elif k == 'signatures':
+                    v_short = copy.deepcopy(v)
+                    for k2, v2 in v_short.items():
+                        v_short[k2[:5]+'...'] = v2
+                    blockchain_string += k + ': ' + str(v_short) + '\n'
                 else:
                     blockchain_string += k + ': ' + str(v) + '\n'
             blockchain_string += '-' * 75 + '\n'
