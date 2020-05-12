@@ -30,7 +30,7 @@ class Node:
         self.ledger = Ledger(node_id)
         self.blockchain = BlockChain(self.node_id, self.ledger)
         self.probability = 0.1
-        self.term_duration = 20
+        self.term_duration = 25
         self.le = leaderElection(self.node_id)
         self.leader_counts = {'0': 0, '1': 0, '2': 0, '3': 0}
         # self.elected_boolean = False
@@ -57,7 +57,7 @@ class Node:
             ),
             hashes.SHA256()
         ).hex()
-
+        self.peer_signatures = {}
         self.all_public_keys[self.node_id] = self.private_key.public_key()
         self.sync_nodes()
         self.genesis_time = 'not set'
@@ -73,7 +73,7 @@ class Node:
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode("utf-8")
-        self.send_blockchain_msg(type='key', contents={'key': public_key_string, 'sender': self.node_id})
+        self.send_blockchain_msg(type='key', contents={'key': public_key_string, 'sender': self.node_id, 'signature': self.sig})
 
 
     def start_mining_thread(self) -> Thread:
@@ -161,32 +161,16 @@ class Node:
         elif msg['type'] == 'key':
             msg_dict = json.loads(msg['contents'])
             sender = msg_dict['sender']
+            sig = msg_dict['signature']
             key_string = msg_dict['key'].encode("utf-8")
 
             incoming_public_key = serialization.load_pem_public_key(
                 key_string,
                 backend=default_backend()
             )
-            print('initial key type ', type(incoming_public_key))
             self.all_public_keys[sender] = incoming_public_key
-            if len(self.all_public_keys) > 3:
-                for key in self.all_public_keys:
-                    print('after key type ', type(key), key)
+            self.peer_signatures[sig] = sender
 
-        # key_string = msg_dict['key'].encode("utf-8")
-        # incoming_public_key = serialization.load_pem_public_key(
-        #     key_string,
-        #     backend=default_backend()
-        # )
-
-
-
-
-
-
-        # elif msg['type'] == 'reward':
-        #     reward = int(msg['contents'])
-        #
 
     def add_to_blockchain(self, block, leader_id):
         self.blockchain.add_block(block)
@@ -203,7 +187,7 @@ class Node:
     def verify_all_signatures(self, block: Block) -> bool:
         signatures = block.signatures
         valid_sig_count = 0
-        for sig in signatures:
+        for sig in signatures.keys():
             for public_key in self.all_public_keys.values():
                 print('what is this key: ', type(public_key), public_key)
                 try:
@@ -225,7 +209,6 @@ class Node:
         else:
             return False
 
-
     def process_incoming_block(self, block: Block, term: int, leader_id: str, block_history: list):
         """
         check if incoming block is sufficently staked. If so add to blockchain. Otherwise, if leader send it for more
@@ -237,11 +220,11 @@ class Node:
         """
         # process block returns true if it is valid and added to blockchain and ledger
         print('==================================received term: ', term, " self term: ", self.term, 'self.node_id: ', self.node_id, '\n+++++++++++++++++++++++++++++++++++++++++++++++++++')
-        if term == self.term and block.index == self.blockchain.get_last_block().index+1:
+        if term == self.term and block.index == self.blockchain.get_last_block().index+1:# and self.verify_all_signatures(block):
             # print('self.node_id :', self.node_id, ' leader_id :', leader_id)
             if self.node_id != leader_id: # if node is a follower
                 print('incoming block index: ', block.index, ' last block index: ', self.blockchain.get_last_block().index)
-                if block.verify_proof_of_stake() and self.verify_all_signatures(block):
+                if block.verify_proof_of_stake():
                     self.add_to_blockchain(block, leader_id)
 
                 else:
@@ -269,7 +252,7 @@ class Node:
                     self.add_to_blockchain(block, leader_id)
 
                     # TODO: REWARD ERRYBODY FOR ALL THEIR HARD WORK, ALSO TREAT YO'SELF TOO
-                    rewardees = [sig[-1] for sig in block.signatures.keys()]
+                    rewardees = [self.peer_signatures[sig] for sig in block.signatures.keys()]
                     rewardees.append(self.node_id)
                     print('Reward these hard working folx: ', rewardees)
                     for peer in rewardees:
@@ -281,6 +264,7 @@ class Node:
                 else:
                     print("leader ", self.node_id, "needs more signatures")
                 self.send_blockchain_msg(type='Block', contents={'block': str(block), 'leader_id': leader_id, 'term': term, 'history': json.dumps(block_history)})
+
 
     # - process block method checks received block data:
     # if leader ID == self and term == term, combine received signatures, if > tx value, do the thing
