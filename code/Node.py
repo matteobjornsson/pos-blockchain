@@ -13,6 +13,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 
+# Note: all code pertaining to RSA keys and signatures was adapted from cryptography.io:
+# https://cryptography.io/en/latest/hazmat/primitives/asymmetric/rsa/
 
 class Node:
 
