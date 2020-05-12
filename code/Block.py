@@ -50,13 +50,11 @@ class Block:
             # print('looping through signatures key: ', k, 'value: ', v, '\n')
             sum_stake += v
         # If there is enough stake, return True
-        ############################################################# reference for video
         if sum_stake > sum([tx.amount for tx in self.transactions]):
             return True
         # This means there was not enough stake
         else:
             return False
-        ############################################################# reference for video
 
 
 if __name__ == '__main__':

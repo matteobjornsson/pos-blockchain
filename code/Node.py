@@ -32,9 +32,7 @@ class Node:
         self.ledger = Ledger(node_id)
         self.blockchain = BlockChain(self.node_id, self.ledger)
         self.probability = 0.1
-        ############################################################# reference for video
         self.term_duration = 25
-        ############################################################# reference for video
         self.le = LeaderElection(self.node_id)
         self.leader_counts = {'0': 0, '1': 0, '2': 0, '3': 0}
         # self.elected_boolean = False
@@ -126,9 +124,7 @@ class Node:
         sleep(random.random() * 2)
         mined_probability = random.random()
 
-        ############################################################# reference for video
         if mined_probability > self.probability and len(self.transaction_queue) != 0:
-        ############################################################# reference for video
             tx_to_mine = self.transaction_queue
             new_index = self.blockchain.get_last_block().index + 1
             verify_boolean, change_or_bad_tx = self.ledger.verify_transaction(tx_to_mine, new_index)
@@ -138,9 +134,7 @@ class Node:
             new_block = Block(index=new_index, transactions=tx_to_mine)
             to_node = self.peers[random.randrange(len(self.peers))]
 
-            ############################################################# reference for video
             self.le.request_leadership()
-            ############################################################# reference for video
             sleep(5)
             if self.le.election_state != 'leader':
                 return
@@ -263,8 +257,6 @@ class Node:
         :return: None
         """
         # process block returns true if it is valid and added to blockchain and ledger
-        #print('==================================received term: ', term, " self term: ", self.term, 'self.node_id: ',
-              #self.node_id, '\n+++++++++++++++++++++++++++++++++++++++++++++++++++')
         if term == self.term and block.index == self.blockchain.get_last_block().index + 1:  # and self.verify_all_signatures(block):
             # if node is a follower
             if self.node_id != leader_id:
@@ -277,9 +269,7 @@ class Node:
                     valid_boolean, change_or_bad_tx = self.ledger.verify_transaction(block.transactions, block.index)
                     # Check node that sent the block does not exceed generation rate. Otherwise, no block is added.
                     # This prevents a node from sending too many blocks (i.e., taking control of the chain).
-                    ############################################################# reference for video
                     if (self.leader_counts[leader_id] / self.term) < self.probability:
-                    ############################################################# reference for video
                         if valid_boolean and self.sig not in block.signatures.keys():
                             print('Signing block with stake: ', sum([tx.amount for tx in block.transactions]) / 2 + .1)
                             block.signatures[self.sig] = sum([tx.amount for tx in block.transactions]) / 2 + .1
@@ -298,10 +288,8 @@ class Node:
                 # Check if there is enough stake
                 if block.verify_proof_of_stake():
                     self.add_to_blockchain(block, leader_id)
-                    ############################################################# reference for video
                     rewardees = [self.peer_signatures[sig] for sig in block.signatures.keys()]
                     rewardees.append(self.node_id)
-                    ############################################################# reference for video
                     print('Reward these hard working folx: ', rewardees)
                     for peer in rewardees:
                         reward_tx = str(Transaction(_to=peer, _from='reward', amount=1))
