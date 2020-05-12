@@ -21,10 +21,6 @@ class BlockChain:
         self.saved_blocks = []
         self.create_or_read_file()
 
-    def verify_block(self, block) -> bool:
-
-        return True
-
     def add_block(self, block):
         """
         This method adds blocks to the chain and writes new chain to disk.

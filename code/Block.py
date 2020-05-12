@@ -38,17 +38,17 @@ class Block:
         return json.dumps(blockDict)
 
     def verify_proof_of_stake(self):
+
         sum_stake = 0
         for k,v in self.signatures.items():
             # print('looping through signatures key: ', k, 'value: ', v, '\n')
             sum_stake += v
-        #print('block signature sums: ', sum_stake, 'transaction sums: ', sum([tx.amount for tx in self.transactions]), '\n')
+        ############################################################# reference for video
         if sum_stake > sum([tx.amount for tx in self.transactions]):
-            #print('verified proof of stake')
             return True
         else:
-            #print('not enough stake?')
             return False
+        ############################################################# reference for video
 
 if __name__ == '__main__':
     new_block = {

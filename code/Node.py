@@ -30,19 +30,20 @@ class Node:
         self.ledger = Ledger(node_id)
         self.blockchain = BlockChain(self.node_id, self.ledger)
         self.probability = 0.1
+        ############################################################# reference for video
         self.term_duration = 25
+        ############################################################# reference for video
         self.le = leaderElection(self.node_id)
         self.leader_counts = {'0': 0, '1': 0, '2': 0, '3': 0}
         # self.elected_boolean = False
 
-
         self.peers = [peer for peer in ['0', '1', '2', '3'] if peer != self.node_id]
         self.transaction_queue = []
-
 
         self.received_blocks = collections.deque()
         self.secret_message =  b'SECRET TUNNEL!'
         self.nodes_online = []
+
         self.all_public_keys = {}
         self.private_key = rsa.generate_private_key(
             public_exponent=65537,
@@ -63,7 +64,6 @@ class Node:
         self.sync_nodes()
         self.genesis_time = 'not set'
         self.term = 0
-
 
     def sync_nodes(self):
         start_time = datetime.now()
@@ -105,7 +105,9 @@ class Node:
 
     def mine_block(self, term: int):
         sleep(random.random()*2)
+        ############################################################# reference for video
         self.le.request_leadership()
+        ############################################################# reference for video
         sleep(5)
         if self.le.election_state != 'leader':
             print('no leader elected \n')
@@ -114,7 +116,9 @@ class Node:
         print("I hope I'm leader!!! : ", self.le.election_state, "\n")
 
         mined_probability = random.random()
-        if len(self.transaction_queue) != 0: #mined_probability > self.probability and
+        ############################################################# reference for video
+        if len(self.transaction_queue) != 0 and mined_probability > self.probability:
+            ############################################################# reference for video
             tx_to_mine = self.transaction_queue
             new_index = self.blockchain.get_last_block().index + 1
             verify_boolean, change_or_bad_tx = self.ledger.verify_transaction(tx_to_mine, new_index )
@@ -171,7 +175,6 @@ class Node:
             )
             self.all_public_keys[sender] = incoming_public_key
             self.peer_signatures[sig] = sender
-
 
     def add_to_blockchain(self, block, leader_id):
         self.blockchain.add_block(block)
@@ -232,12 +235,15 @@ class Node:
                     #print("follower ", self.node_id, "received block to verify")
                     # if sender does not exceed block generation rate, do this:
                     valid_boolean, change_or_bad_tx = self.ledger.verify_transaction(block.transactions, block.index)
-                    #print('generation rate: ', self.leader_counts[leader_id]/self.term)
+
+                    ############################################################# reference for video
                     if (self.leader_counts[leader_id]/self.term) < self.probability:
+                    ############################################################# reference for video
                         if valid_boolean and self.sig not in block.signatures.keys():
+                            ############################################################# reference for video
                             print('stake to be sent ', sum([tx.amount for tx in block.transactions])/2 + .1)
                             block.signatures[self.sig] = sum([tx.amount for tx in block.transactions])/2 + .1
-                            block_history.append(self.node_id)
+                            block_history.append(self.node_id) # only signed if tx valid
                             contents = {'block': str(block), 'leader_id': leader_id, 'term': str(term), 'history': json.dumps(block_history)}
                             if block.verify_proof_of_stake():
                                 self.send_peer_msg(type='Block', contents=contents, peer=leader_id)
@@ -251,10 +257,10 @@ class Node:
                 # print('leader received block from followers')
                 if block.verify_proof_of_stake():
                     self.add_to_blockchain(block, leader_id)
-
-                    # TODO: REWARD ERRYBODY FOR ALL THEIR HARD WORK, ALSO TREAT YO'SELF TOO
+                    ############################################################# reference for video
                     rewardees = [self.peer_signatures[sig] for sig in block.signatures.keys()]
                     rewardees.append(self.node_id)
+                    ############################################################# reference for video
                     print('Reward these hard working folx: ', rewardees)
                     for peer in rewardees:
                         reward_tx = str(Transaction(_to=peer, _from='reward', amount=1))
