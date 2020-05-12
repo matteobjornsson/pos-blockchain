@@ -53,8 +53,6 @@ class Ledger:
         for tx in transactions:  # apply all transactions to that state
             if tx.from_node != 'reward':
                 change[tx.from_node] -= tx.amount
-            else:
-                print(self.node_id, ' received a reward!')
             change[tx.to_node] += tx.amount
         all_bad_tx = []
         for node, balance in change.items():
